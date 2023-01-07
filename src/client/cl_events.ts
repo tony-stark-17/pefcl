@@ -11,9 +11,11 @@ import {
   Broadcasts,
   NUIEvents,
   CashEvents,
+  CardEvents,
 } from '@typings/Events';
 import { Invoice } from '@typings/Invoice';
 import { Transaction } from '@typings/Transaction';
+import { OnlineUser } from '@typings/user';
 import { RegisterNuiProxy } from 'cl_utils';
 import API from './cl_api';
 import config from './cl_config';
@@ -22,6 +24,8 @@ const npwdExports = global.exports['npwd'];
 
 const useFrameworkIntegration = config.frameworkIntegration?.enabled;
 let hasNUILoaded = false;
+
+emitNet(UserEvents.LoadClient);
 
 RegisterNuiCB(NUIEvents.Loaded, () => {
   console.debug('NUI has loaded.');
@@ -80,11 +84,11 @@ onNet(Broadcasts.RemovedSharedUser, () => {
   SendBankUIMessage({ type: Broadcasts.RemovedSharedUser });
 });
 
-onNet(UserEvents.Loaded, async () => {
+onNet(UserEvents.Loaded, async (user: OnlineUser) => {
   console.debug('Waiting for NUI to load ..');
   await waitForNUILoaded();
   console.debug('Loaded. Emitting data to NUI.');
-  SendBankUIMessage({ type: UserEvents.Loaded, payload: true });
+  SendBankUIMessage({ type: UserEvents.Loaded, payload: JSON.stringify(user) });
 
   if (!useFrameworkIntegration) {
     StatSetInt(CASH_BAL_STAT, (await API.getMyCash()) ?? 0, true);
@@ -120,9 +124,19 @@ RegisterNuiProxy(SharedAccountEvents.GetUsers);
 RegisterNuiProxy(ExternalAccountEvents.Add);
 RegisterNuiProxy(ExternalAccountEvents.Get);
 
+RegisterNuiProxy(AccountEvents.GetAtmAccount);
 RegisterNuiProxy(AccountEvents.WithdrawMoney);
 RegisterNuiProxy(AccountEvents.DepositMoney);
 RegisterNuiProxy(CashEvents.GetMyCash);
+
+// Cards
+RegisterNuiProxy(CardEvents.Get);
+RegisterNuiProxy(CardEvents.Block);
+RegisterNuiProxy(CardEvents.Delete);
+RegisterNuiProxy(CardEvents.OrderPersonal);
+RegisterNuiProxy(CardEvents.OrderShared);
+RegisterNuiProxy(CardEvents.UpdatePin);
+RegisterNuiProxy(CardEvents.GetInventoryCards);
 
 RegisterCommand(
   'bank-force-load',
